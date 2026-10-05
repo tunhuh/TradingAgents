@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MonthCalendar } from "@/components/month-calendar";
 import { RatingTag } from "@/components/rating-tag";
-import { monthGrid, monthLabel, parseMonth, runsByDay, shiftMonth } from "@/lib/calendar";
+import { monthGrid, monthLabel, parseDay, parseMonth, runsByDay, shiftMonth } from "@/lib/calendar";
 import { formatWhen, todayLocal } from "@/lib/format";
 import { listReports } from "@/lib/reports";
 
@@ -12,7 +12,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const reports = await listReports();
   const today = todayLocal();
   const month = parseMonth(sp.month) ?? (reports[0]?.runAt.slice(0, 7) ?? today.slice(0, 7));
-  const day = sp.day && /^\d{4}-\d{2}-\d{2}$/.test(sp.day) ? sp.day : null;
+  const day = parseDay(sp.day);
   const runs = runsByDay(reports);
   const dayRuns = day ? runs.get(day) ?? [] : [];
 

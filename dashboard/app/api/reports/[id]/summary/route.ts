@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { localRequestError } from "@/lib/guard";
-import { NotFoundError, decodeRouteParam, resolveReportDir } from "@/lib/paths";
+import { NotFoundError, decodeRouteParam, pythonBin, resolveReportDir } from "@/lib/paths";
 import { lastLine, runWorker } from "@/lib/python";
 import { readSummary } from "@/lib/reports";
 
@@ -25,7 +25,7 @@ export async function POST(req: Request, { params }: Ctx) {
   try {
     result = await runWorker("dashboard.worker.summarize", [id], 180_000);
   } catch (e) {
-    return NextResponse.json({ error: `Could not start the Python worker: ${(e as Error).message}` }, { status: 500 });
+    return NextResponse.json({ error: `Could not start the Python worker (${pythonBin()}): ${(e as Error).message}. Set TA_PYTHON.` }, { status: 500 });
   }
   if (result.code !== 0) {
     return NextResponse.json(

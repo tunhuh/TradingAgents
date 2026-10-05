@@ -48,7 +48,7 @@ export function AlphaChart({ rows }: { rows: ScoreSummary["byRating"] }) {
                 }}
               >
                 {data.map((d) => <Cell key={d.rating} fill={t.rating[d.rating]} />)}
-                <LabelList dataKey="alpha" content={barValueLabel((v) => (Math.abs(v) < 0.0005 ? "0.0%" : formatPercent(v, { signed: true })), t.ink)} />
+                <LabelList dataKey="alpha" content={barValueLabel((v, i) => `${Math.abs(v) < 0.0005 ? "0.0%" : formatPercent(v, { signed: true })} (n=${data[i]?.n ?? 0})`, t.ink)} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

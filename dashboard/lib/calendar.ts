@@ -17,6 +17,13 @@ export function parseMonth(s?: string): string | null {
   return m >= 1 && m <= 12 ? s : null;
 }
 
+/** A real calendar date "YYYY-MM-DD", or null. */
+export function parseDay(s?: string): string | null {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = utc(s);
+  return !Number.isNaN(d.getTime()) && iso(d) === s ? s : null;
+}
+
 export function shiftMonth(month: string, delta: number): string {
   const d = utc(`${month}-01`);
   d.setUTCMonth(d.getUTCMonth() + delta);

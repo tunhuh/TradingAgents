@@ -51,7 +51,7 @@
   --rating-buy: #1f4fa3;
   --rating-buy-ink: #ffffff;
   --rating-overweight: #6f94d6;
-  --rating-overweight-ink: #ffffff;
+  --rating-overweight-ink: #14233b; /* navy: white fails contrast on #6f94d6 */
   --rating-hold: #c8c3b6;
   --rating-hold-ink: #14233b;
   --rating-underweight: #d6923a;

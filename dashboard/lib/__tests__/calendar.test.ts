@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthGrid, monthLabel, parseMonth, runsByDay, runsPerWeek, shiftMonth, weekStart } from "@/lib/calendar";
+import { monthGrid, monthLabel, parseDay, parseMonth, runsByDay, runsPerWeek, shiftMonth, weekStart } from "@/lib/calendar";
 
 describe("month helpers", () => {
   it("parses, shifts and labels months", () => {
@@ -39,5 +39,14 @@ describe("runsByDay / weeks", () => {
       { week: "2026-09-28", count: 1 },
       { week: "2026-10-05", count: 2 },
     ]);
+  });
+});
+
+describe("parseDay", () => {
+  it("accepts only real calendar dates", () => {
+    expect(parseDay("2026-09-17")).toBe("2026-09-17");
+    expect(parseDay("2026-13-45")).toBeNull();
+    expect(parseDay("2026-02-30")).toBeNull();
+    expect(parseDay(undefined)).toBeNull();
   });
 });
