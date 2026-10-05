@@ -50,13 +50,13 @@
 
   --rating-buy: #1f4fa3;
   --rating-buy-ink: #ffffff;
-  --rating-overweight: #93b2e3;
-  --rating-overweight-ink: #14233b;
+  --rating-overweight: #6f94d6;
+  --rating-overweight-ink: #ffffff;
   --rating-hold: #c8c3b6;
   --rating-hold-ink: #14233b;
-  --rating-underweight: #f0b865;
+  --rating-underweight: #d6923a;
   --rating-underweight-ink: #14233b;
-  --rating-sell: #a8520a;
+  --rating-sell: #9a4a08;
   --rating-sell-ink: #ffffff;
   --rating-review: transparent;
 
