@@ -3,11 +3,12 @@ import path from "node:path";
 export class NotFoundError extends Error {}
 
 export function repoRoot(): string {
-  return path.resolve(process.env.TA_REPO_ROOT ?? path.join(process.cwd(), ".."));
+  // turbopackIgnore: these are runtime paths outside the app; nothing to trace into the build.
+  return path.resolve(/*turbopackIgnore: true*/ process.env.TA_REPO_ROOT ?? path.join(process.cwd(), ".."));
 }
 
 export function reportsDir(): string {
-  return path.resolve(process.env.TA_REPORTS_DIR ?? path.join(repoRoot(), "reports"));
+  return path.resolve(/*turbopackIgnore: true*/ process.env.TA_REPORTS_DIR ?? path.join(repoRoot(), "reports"));
 }
 
 export function batchesDir(): string {
