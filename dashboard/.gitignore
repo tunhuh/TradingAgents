@@ -43,3 +43,6 @@ next-env.d.ts
 
 # the repo root .gitignore ignores lib/ (Python template); this app keeps code there
 !/lib/
+# the repo root .gitignore ignores reports/ (CLI output); these are app routes
+!/app/reports/
+!/app/api/reports/
