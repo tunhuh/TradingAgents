@@ -2,12 +2,10 @@ import fs from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { localRequestError } from "@/lib/guard";
 import { NotFoundError, decodeRouteParam, resolveReportDir } from "@/lib/paths";
-import { runWorker } from "@/lib/python";
+import { lastLine, runWorker } from "@/lib/python";
 import { readSummary } from "@/lib/reports";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-const lastLine = (text: string) => text.trim().split("\n").pop() ?? "";
 
 export async function POST(req: Request, { params }: Ctx) {
   const denied = localRequestError(req);

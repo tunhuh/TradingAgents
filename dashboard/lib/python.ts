@@ -54,3 +54,8 @@ export function runWorker(module: string, args: string[], timeoutMs: number): Pr
     });
   });
 }
+
+/** Last non-empty line of a worker's stderr — its one-line error message. */
+export function lastLine(text: string): string {
+  return text.trim().split("\n").pop() ?? "";
+}

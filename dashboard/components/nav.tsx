@@ -5,14 +5,19 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Verdicts" },
+  { href: "/calendar", label: "Calendar" },
+  { href: "/insights", label: "Insights" },
   { href: "/batches", label: "Batches" },
   { href: "/batches/new", label: "New batch" },
 ];
 
 export function Nav() {
   const pathname = usePathname();
-  const current = (href: string) =>
-    href === "/" ? pathname === "/" || pathname.startsWith("/reports") : pathname === href || (href === "/batches" && /^\/batches\/(?!new)/.test(pathname));
+  const current = (href: string) => {
+    if (href === "/") return pathname === "/" || pathname.startsWith("/reports") || pathname.startsWith("/tickers");
+    if (href === "/batches") return /^\/batches(\/(?!new)|$)/.test(pathname);
+    return pathname === href;
+  };
 
   return (
     <header className="border-b border-border">
