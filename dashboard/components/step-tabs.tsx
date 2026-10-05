@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "radix-ui";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export interface Step {
@@ -14,8 +14,28 @@ export interface Step {
 
 /** Pipeline steps as a numbered side list (a row on narrow screens); `lead` sits above every panel. */
 export function StepTabs({ steps, lead }: { steps: Step[]; lead?: ReactNode }) {
+  const panelsTop = useRef<HTMLDivElement>(null);
+
+  // The step list stays pinned while you read, so a step can be picked from deep inside a long
+  // section. Bring the new section's start into view unless it's already on screen.
+  function showSelectedStep() {
+    requestAnimationFrame(() => {
+      const anchor = panelsTop.current;
+      if (!anchor) return;
+      const { top } = anchor.getBoundingClientRect();
+      if (top >= 0 && top < window.innerHeight) return;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      anchor.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+    });
+  }
+
   return (
-    <Tabs.Root defaultValue={steps[0]?.key} orientation="vertical" className="grid gap-8 lg:grid-cols-[11.5rem_1fr] lg:gap-12">
+    <Tabs.Root
+      defaultValue={steps[0]?.key}
+      onValueChange={showSelectedStep}
+      orientation="vertical"
+      className="grid gap-8 lg:grid-cols-[11.5rem_1fr] lg:gap-12"
+    >
       <Tabs.List
         aria-label="Report sections"
         className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:sticky lg:top-6 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:px-0"
@@ -37,6 +57,7 @@ export function StepTabs({ steps, lead }: { steps: Step[]; lead?: ReactNode }) {
       </Tabs.List>
       <div className="min-w-0">
         {lead}
+        <div ref={panelsTop} aria-hidden className="scroll-mt-6" />
         {steps.map((s) => (
           <Tabs.Content key={s.key} value={s.key}>
             {s.content}
