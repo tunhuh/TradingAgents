@@ -132,3 +132,14 @@ def test_config_failure_fails_whole_batch(reports, monkeypatch):
     assert batch["status"] == "failed"
     assert "TRADINGAGENTS_MAX_DEBATE_ROUNDS" in batch["error"]
     assert batch["items"][0]["status"] == "failed"
+
+
+def test_writes_meta_json_with_trade_date(reports):
+    write_batch(reports, ["NVDA", "BTCUSD"], auto_summarize=False)
+    run_batch.run("20261005_101500_a1b2", graph_factory=FakeGraphs())
+    items = saved(reports)["items"]
+    nvda = json.loads((reports / items[0]["report_id"] / "meta.json").read_text())
+    btc = json.loads((reports / items[1]["report_id"] / "meta.json").read_text())
+    assert nvda == {"ticker": "NVDA", "trade_date": "2026-10-03", "asset_type": "stock",
+                    "analysts": ["market", "news", "fundamentals"], "batch_id": "20261005_101500_a1b2"}
+    assert btc["ticker"] == "BTC-USD" and btc["asset_type"] == "crypto" and btc["analysts"] == ["market", "news"]

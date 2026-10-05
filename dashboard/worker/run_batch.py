@@ -15,7 +15,7 @@ import sys
 from datetime import datetime
 
 from dashboard.worker import batch_store
-from dashboard.worker.common import load_config, now_iso, reports_dir
+from dashboard.worker.common import load_config, now_iso, reports_dir, write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def _default_summarizer(config: dict):
     return lambda report_dir: summarize_report(report_dir, llm, label)
 
 
-def _run_one(ticker: str, params: dict, config: dict, graphs: dict, graph_factory) -> tuple[str, str]:
+def _run_one(ticker: str, params: dict, config: dict, graphs: dict, graph_factory, batch_id: str) -> tuple[str, str]:
     from cli.models import AnalystType
     from cli.utils import detect_asset_type, filter_analysts_for_asset_type, normalize_ticker_symbol
     from tradingagents.dataflows.utils import safe_ticker_component
@@ -67,7 +67,16 @@ def _run_one(ticker: str, params: dict, config: dict, graphs: dict, graph_factor
 
     final_state, rating = graph.propagate(ticker, params["trade_date"], asset_type=asset_type.value)
     report_id = f"{safe_ticker_component(ticker)}_{datetime.now():%Y%m%d_%H%M%S}"
-    graph.save_reports(final_state, ticker, reports_dir() / report_id)
+    report_dir = reports_dir() / report_id
+    graph.save_reports(final_state, ticker, report_dir)
+    # The report folder is named by run time; record what it was an analysis *for*.
+    write_json_atomic(report_dir / "meta.json", {
+        "ticker": ticker,
+        "trade_date": params["trade_date"],
+        "asset_type": asset_type.value,
+        "analysts": analysts,
+        "batch_id": batch_id,
+    })
     return report_id, rating
 
 
@@ -88,7 +97,7 @@ def run(batch_id: str, *, graph_factory=None, summarizer=None) -> dict:
         for index, item in enumerate(batch["items"]):
             batch_store.mark_item(batch, index, status="running", started_at=now_iso())
             try:
-                report_id, rating = _run_one(item["ticker"], params, config, graphs, graph_factory)
+                report_id, rating = _run_one(item["ticker"], params, config, graphs, graph_factory, batch_id)
             except Exception as exc:
                 logger.exception("analysis failed for %s", item["ticker"])
                 batch_store.mark_item(batch, index, status="failed", finished_at=now_iso(), error=_error_text(exc))
