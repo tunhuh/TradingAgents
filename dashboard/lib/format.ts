@@ -9,14 +9,24 @@ export function todayLocal(d: Date = new Date()): string {
   return toLocalNaive(d).slice(0, 10);
 }
 
-export function formatRunAt(runAt: string): string {
-  return runAt.replace("T", " ").slice(0, 16);
-}
-
 export function formatPrice(n: number | null | undefined): string {
   return n == null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
-export function formatIso(iso: string | null | undefined): string {
-  return iso ? toLocalNaive(new Date(iso)).replace("T", " ") : "—";
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-10-04T22:04:13" → "4 Oct 2026, 22:04". Fixed month names so server and client render identically. */
+export function formatWhen(runAt: string): string {
+  const [date, time = "00:00"] = runAt.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]} ${y}, ${time.slice(0, 5)}`;
+}
+
+export function formatDay(runAt: string): string {
+  return formatWhen(runAt).split(" ").slice(0, 2).join(" ");
+}
+
+/** UTC ISO timestamp → local "4 Oct 2026, 22:04". */
+export function formatIsoWhen(iso: string | null | undefined): string {
+  return iso ? formatWhen(toLocalNaive(new Date(iso))) : "—";
 }

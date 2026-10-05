@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { RatingBadge } from "@/components/rating-badge";
+import { RatingTag } from "@/components/rating-tag";
 import { SummarizeButton } from "@/components/summarize-button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatPrice, formatRunAt } from "@/lib/format";
+import { Label } from "@/components/ui/label";
+import { formatPrice, formatWhen } from "@/lib/format";
 import type { ReportListItem } from "@/lib/types";
+
+const th = "py-2 pr-4 text-left text-sm font-normal text-muted-foreground";
+const td = "border-t border-border py-3 pr-4 align-top";
 
 export function ReportsTable({ reports }: { reports: ReportListItem[] }) {
   const [ticker, setTicker] = useState("");
@@ -23,45 +26,58 @@ export function ReportsTable({ reports }: { reports: ReportListItem[] }) {
   }, [reports, ticker, from, to]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        <Input placeholder="Filter ticker" value={ticker} onChange={(e) => setTicker(e.target.value)} className="w-40" />
-        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" aria-label="From date" />
-        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" aria-label="To date" />
+    <div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="f-ticker" className="text-xs text-muted-foreground">Ticker</Label>
+          <Input id="f-ticker" value={ticker} onChange={(e) => setTicker(e.target.value)} className="w-32 bg-card" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="f-from" className="text-xs text-muted-foreground">From</Label>
+          <Input id="f-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40 bg-card" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="f-to" className="text-xs text-muted-foreground">To</Label>
+          <Input id="f-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40 bg-card" />
+        </div>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Ticker</TableHead>
-            <TableHead>Run time</TableHead>
-            <TableHead>Rating</TableHead>
-            <TableHead className="text-right">Target</TableHead>
-            <TableHead>Horizon</TableHead>
-            <TableHead>TL;DR</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">
-                <Link href={`/reports/${encodeURIComponent(r.id)}`} className="underline-offset-4 hover:underline">{r.ticker}</Link>
-              </TableCell>
-              <TableCell className="whitespace-nowrap">{formatRunAt(r.runAt)}</TableCell>
-              <TableCell><RatingBadge rating={r.summary?.rating} /></TableCell>
-              <TableCell className="text-right">{formatPrice(r.summary?.price_target)}</TableCell>
-              <TableCell>{r.summary?.time_horizon ?? "—"}</TableCell>
-              <TableCell className="max-w-md whitespace-normal">
-                {r.summary ? <span className="line-clamp-2 text-sm">{r.summary.tldr}</span> : <SummarizeButton reportId={r.id} />}
-              </TableCell>
-            </TableRow>
-          ))}
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No reports match.</TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[44rem] border-collapse text-[0.9375rem]">
+          <thead>
+            <tr>
+              <th className={th}>Ticker</th>
+              <th className={th}>Run</th>
+              <th className={th}>Rating</th>
+              <th className={`${th} text-right`}>Target</th>
+              <th className={th}>Horizon</th>
+              <th className={th}>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td className={td}>
+                  <Link href={`/reports/${encodeURIComponent(r.id)}`} className="text-lg leading-none font-bold tracking-[-0.02em] underline-offset-4 hover:underline">
+                    {r.ticker}
+                  </Link>
+                </td>
+                <td className={`${td} whitespace-nowrap text-muted-foreground`}>{formatWhen(r.runAt)}</td>
+                <td className={td}><RatingTag rating={r.summary?.rating} /></td>
+                <td className={`${td} text-right`}>{formatPrice(r.summary?.price_target)}</td>
+                <td className={`${td} whitespace-nowrap`}>{r.summary?.time_horizon ?? "—"}</td>
+                <td className={`${td} max-w-[28rem]`}>
+                  {r.summary ? <span className="line-clamp-2 text-muted-foreground">{r.summary.tldr}</span> : <SummarizeButton reportId={r.id} />}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className={`${td} py-10 text-muted-foreground`}>No runs match these filters.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ const STEPS: { key: StepKey; title: string; dir: string; files: [string, string]
   { key: "research", title: "Research", dir: "2_research", files: [["bull", "Bull Researcher"], ["bear", "Bear Researcher"], ["manager", "Research Manager"]] },
   { key: "trading", title: "Trading", dir: "3_trading", files: [["trader", "Trader"]] },
   { key: "risk", title: "Risk", dir: "4_risk", files: [["aggressive", "Aggressive Analyst"], ["conservative", "Conservative Analyst"], ["neutral", "Neutral Analyst"]] },
-  { key: "portfolio", title: "Portfolio", dir: "5_portfolio", files: [["decision", "Portfolio Manager"]] },
+  { key: "portfolio", title: "Decision", dir: "5_portfolio", files: [["decision", "Portfolio Manager"]] },
 ];
 
 export function parseReportFolderName(name: string): { ticker: string; runAt: string | null } {

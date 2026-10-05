@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { BatchStatusBadge } from "@/components/batch-status-badge";
 import { CancelBatchButton } from "@/components/cancel-batch-button";
-import { ComparisonTable } from "@/components/comparison-table";
-import { RatingBadge } from "@/components/rating-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RatingTag } from "@/components/rating-tag";
+import { StatusMark } from "@/components/status-mark";
+import { TermsTable } from "@/components/terms-table";
+import { VerdictScale } from "@/components/verdict-scale";
 import { getBatch, isActive, isOrphaned, readLogTail } from "@/lib/batches";
 import type { ComparisonRow } from "@/lib/compare";
-import { formatIso } from "@/lib/format";
+import { formatIsoWhen, formatPrice } from "@/lib/format";
 import { NotFoundError } from "@/lib/paths";
 import { readSummaryForReport } from "@/lib/reports";
 import { ANALYST_LABELS, type Batch } from "@/lib/types";
@@ -36,64 +36,79 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
   }
 
   const p = batch.params;
+  const done = batch.items.filter((i) => i.status === "done").length;
   return (
-    <div className="space-y-6">
+    <div className="space-y-14">
       <AutoRefresh active={active} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-3 text-2xl font-semibold">
-          Batch {formatIso(batch.created_at)} <BatchStatusBadge status={orphaned ? "failed" : batch.status} />
+      <header className="space-y-6 border-b border-border pb-10">
+        <h1 className="text-[clamp(2.75rem,7vw,5.25rem)] leading-[0.9] font-extrabold tracking-[-0.05em] break-words">
+          {p.tickers.join(" ")}
         </h1>
-        {active && batch.pid != null && <CancelBatchButton batchId={batch.id} />}
-        {orphaned && <CancelBatchButton batchId={batch.id} label="Mark as failed" />}
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Trade date {p.trade_date} · Analysts {p.analysts.map((a) => ANALYST_LABELS[a]).join(", ")} · Debate {p.max_debate_rounds} · Risk {p.max_risk_discuss_rounds}
-        {p.auto_summarize ? " · Auto-summarize" : ""}
-      </p>
-      {orphaned && <p className="text-sm text-red-600">The worker process exited unexpectedly. Check the log below.</p>}
-      {batch.error && <p className="text-sm text-red-600">{batch.error}</p>}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <StatusMark status={orphaned ? "failed" : batch.status} className="text-lg font-semibold" />
+          <span className="text-muted-foreground">
+            {done} of {batch.items.length} done, started {formatIsoWhen(batch.created_at)}
+          </span>
+          {active && batch.pid != null && <CancelBatchButton batchId={batch.id} />}
+          {orphaned && <CancelBatchButton batchId={batch.id} label="Mark as failed" />}
+        </div>
+        {orphaned && <p className="text-destructive">The worker process stopped without finishing. Check the worker log below, then mark the batch as failed.</p>}
+        {batch.error && <p className="text-destructive">{batch.error}</p>}
+        <dl className="grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-5">
+          <div><dt className="text-muted-foreground">Trade date</dt><dd className="font-medium">{p.trade_date}</dd></div>
+          <div className="col-span-2 sm:col-span-1"><dt className="text-muted-foreground">Analysts</dt><dd className="font-medium">{p.analysts.map((a) => ANALYST_LABELS[a]).join(", ")}</dd></div>
+          <div><dt className="text-muted-foreground">Debate rounds</dt><dd className="font-medium">{p.max_debate_rounds}</dd></div>
+          <div><dt className="text-muted-foreground">Risk rounds</dt><dd className="font-medium">{p.max_risk_discuss_rounds}</dd></div>
+          <div><dt className="text-muted-foreground">Summaries</dt><dd className="font-medium">{p.auto_summarize ? "Automatic" : "Manual"}</dd></div>
+        </dl>
+      </header>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Ticker</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Signal</TableHead>
-            <TableHead>Summary</TableHead>
-            <TableHead>Finished</TableHead>
-            <TableHead>Report / error</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold tracking-[-0.02em]">Progress</h2>
+        <ol>
           {batch.items.map((item) => (
-            <TableRow key={item.ticker}>
-              <TableCell className="font-medium">{item.ticker}</TableCell>
-              <TableCell><BatchStatusBadge status={item.status} /></TableCell>
-              <TableCell><RatingBadge rating={item.signal} /></TableCell>
-              <TableCell className="text-sm">{item.summary_status}</TableCell>
-              <TableCell className="whitespace-nowrap text-sm">{formatIso(item.finished_at)}</TableCell>
-              <TableCell className="max-w-md whitespace-normal text-sm">
-                {item.report_id && (
-                  <Link href={`/reports/${encodeURIComponent(item.report_id)}`} className="underline">Open report</Link>
+            <li key={item.ticker} className="grid gap-x-6 gap-y-1 border-t border-border py-4 sm:grid-cols-[9rem_9rem_1fr] sm:items-baseline">
+              <span className="text-2xl leading-none font-extrabold tracking-[-0.04em]">{item.ticker}</span>
+              <StatusMark status={item.status} />
+              <div className="space-y-1 text-[0.9375rem]">
+                {item.signal && (
+                  <div className="flex flex-wrap items-baseline gap-x-4">
+                    <RatingTag rating={item.signal} />
+                    {item.finished_at && <span className="text-muted-foreground">finished {formatIsoWhen(item.finished_at)}</span>}
+                    {item.report_id && (
+                      <Link href={`/reports/${encodeURIComponent(item.report_id)}`} className="underline underline-offset-4">Open report</Link>
+                    )}
+                  </div>
                 )}
-                {item.error && <div className="text-red-600">{item.error}</div>}
-              </TableCell>
-            </TableRow>
+                {item.status === "running" && <span className="text-muted-foreground">The committee is working on this ticker.</span>}
+                {item.error && <p className="text-destructive">{item.error}</p>}
+              </div>
+            </li>
           ))}
-        </TableBody>
-      </Table>
+        </ol>
+      </section>
 
       {rows.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Comparison</h2>
-          <ComparisonTable rows={rows} />
+        <section className="space-y-8">
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Verdicts</h2>
+          <VerdictScale
+            label="Verdicts in this batch, from Buy to Sell"
+            entries={rows.map((r) => ({
+              key: r.reportId,
+              ticker: r.ticker,
+              href: `/reports/${encodeURIComponent(r.reportId)}`,
+              rating: r.summary.rating,
+              note: r.summary.price_target != null ? `target ${formatPrice(r.summary.price_target)}` : undefined,
+            }))}
+          />
+          <TermsTable rows={rows} />
         </section>
       )}
 
       {log && (
-        <details>
-          <summary className="cursor-pointer text-sm text-muted-foreground">Worker log (last 50 lines)</summary>
-          <pre className="mt-2 max-h-96 overflow-auto rounded bg-muted p-3 text-xs">{log}</pre>
+        <details className="group">
+          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Worker log, last 50 lines</summary>
+          <pre className="mt-3 max-h-96 overflow-auto rounded-[3px] bg-card p-4 text-xs leading-relaxed">{log}</pre>
         </details>
       )}
     </div>

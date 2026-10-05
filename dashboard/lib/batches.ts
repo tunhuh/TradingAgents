@@ -5,9 +5,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { todayLocal, toLocalNaive } from "@/lib/format";
 import { NotFoundError, batchesDir, resolveBatchFile } from "@/lib/paths";
+import { parseTickerInput } from "@/lib/tickers";
 import { ANALYSTS, type Analyst, type Batch, type BatchParams } from "@/lib/types";
 
-const TICKER_RE = /^[A-Z0-9.\-^=]{1,32}$/;
 const MAX_TICKERS = 20;
 const QUEUED_GRACE_MS = 120_000;
 
@@ -29,13 +29,11 @@ function isValidDate(s: string): boolean {
 export function validateParams(body: unknown, today: string = todayLocal()): Validation {
   const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
 
-  const raw = typeof b.tickers === "string" ? b.tickers.split(/[\s,;]+/) : Array.isArray(b.tickers) ? b.tickers : null;
-  if (!raw) return { ok: false, error: "tickers is required" };
-  const tickers = [...new Set(raw.map((t) => String(t).trim().toUpperCase()).filter(Boolean))];
+  if (typeof b.tickers !== "string" && !Array.isArray(b.tickers)) return { ok: false, error: "tickers is required" };
+  const { tickers, invalid } = parseTickerInput(b.tickers);
+  if (invalid.length) return { ok: false, error: `Invalid ticker(s): ${invalid.join(", ")}` };
   if (tickers.length === 0) return { ok: false, error: "Enter at least one ticker" };
   if (tickers.length > MAX_TICKERS) return { ok: false, error: `At most ${MAX_TICKERS} tickers per batch` };
-  const bad = tickers.filter((t) => !TICKER_RE.test(t) || /^\.+$/.test(t));
-  if (bad.length) return { ok: false, error: `Invalid ticker(s): ${bad.join(", ")}` };
 
   const trade_date = typeof b.trade_date === "string" ? b.trade_date.trim() : "";
   if (!isValidDate(trade_date)) return { ok: false, error: "Trade date must be a valid YYYY-MM-DD date" };

@@ -1,29 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Schibsted_Grotesk, Source_Serif_4 } from "next/font/google";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
-const geistSans = Geist({
+const grotesk = Schibsted_Grotesk({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const serif = Source_Serif_4({
+  variable: "--font-serif",
   subsets: ["latin"],
+  axes: ["opsz"],
 });
 
 export const metadata: Metadata = {
-  title: "TradingAgents Dashboard",
-  description: "Reports, batch analysis and summaries",
+  title: "TradingAgents",
+  description: "Committee verdicts, batch runs and report summaries",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${grotesk.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full bg-background font-sans text-foreground">
         <Nav />
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 pt-8 pb-24 sm:px-6">{children}</main>
       </body>
     </html>
   );

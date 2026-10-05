@@ -1,14 +1,19 @@
 import { notFound } from "next/navigation";
 import { Markdown } from "@/components/markdown";
+import { RatingScaleMarker } from "@/components/rating-scale-marker";
+import { RatingTag } from "@/components/rating-tag";
+import { StepTabs, type Step } from "@/components/step-tabs";
 import { SummarizeButton } from "@/components/summarize-button";
-import { SummaryCard } from "@/components/summary-card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRunAt } from "@/lib/format";
+import { SummarySection } from "@/components/summary-section";
+import { formatPrice, formatWhen } from "@/lib/format";
 import { NotFoundError, decodeRouteParam } from "@/lib/paths";
 import { getReport } from "@/lib/reports";
-import type { ReportDetail } from "@/lib/types";
+import type { ReportDetail, StepKey } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// Position in the agent pipeline, matching the 1_analysts … 5_portfolio folders.
+const STEP_NUMBER: Record<StepKey, number> = { analysts: 1, research: 2, trading: 3, risk: 4, portfolio: 5 };
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,33 +24,58 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const tabs = [
-    ...report.steps.map((s) => ({ key: s.key, title: s.title, body: s.sections.map((x) => `## ${x.title}\n\n${x.markdown}`).join("\n\n") })),
-    ...(report.complete ? [{ key: "full", title: "Full report", body: report.complete }] : []),
+  const { summary } = report;
+
+  const steps: Step[] = [
+    ...report.steps.map((s) => ({
+      key: s.key,
+      title: s.title,
+      number: STEP_NUMBER[s.key],
+      content: <Markdown>{s.sections.map((x) => `## ${x.title}\n\n${x.markdown}`).join("\n\n")}</Markdown>,
+    })),
+    ...(report.complete ? [{ key: "full", title: "Full report", content: <Markdown>{report.complete}</Markdown> }] : []),
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          {report.ticker} <span className="text-base font-normal text-muted-foreground">{formatRunAt(report.runAt)}</span>
-        </h1>
-        {report.complete && (
-          <SummarizeButton reportId={report.id} label={report.summary ? "Regenerate summary" : "Summarize"} />
-        )}
-      </div>
-      {report.summary && <SummaryCard summary={report.summary} stale={report.summaryStale} />}
-      {tabs.length > 0 ? (
-        <Tabs defaultValue={tabs[0].key}>
-          <TabsList className="flex-wrap">
-            {tabs.map((t) => <TabsTrigger key={t.key} value={t.key}>{t.title}</TabsTrigger>)}
-          </TabsList>
-          {tabs.map((t) => (
-            <TabsContent key={t.key} value={t.key} className="pt-4"><Markdown>{t.body}</Markdown></TabsContent>
-          ))}
-        </Tabs>
+    <div className="space-y-12">
+      <header className="grid gap-8 border-b border-border pb-10 lg:grid-cols-[1fr_22rem] lg:items-end">
+        <div>
+          <h1 className="text-[clamp(4.5rem,13vw,9rem)] leading-[0.82] font-extrabold tracking-[-0.055em] break-words">{report.ticker}</h1>
+          <p className="mt-4 text-muted-foreground">Run {formatWhen(report.runAt)}</p>
+        </div>
+        <div className="space-y-5">
+          {summary ? (
+            <>
+              <RatingTag rating={summary.rating} className="text-2xl font-bold tracking-[-0.02em]" />
+              <RatingScaleMarker rating={summary.rating} />
+              <dl className="grid grid-cols-3 gap-4 border-t border-border pt-4">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Target</dt>
+                  <dd className="text-lg font-semibold">{formatPrice(summary.price_target)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Stop</dt>
+                  <dd className="text-lg font-semibold">{formatPrice(summary.stop_loss)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Horizon</dt>
+                  <dd className="text-lg leading-tight font-semibold">{summary.time_horizon ?? "—"}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <p className="text-muted-foreground">No summary yet. Summarize the report to see its rating, target and stop here.</p>
+          )}
+          {report.complete && (
+            <SummarizeButton reportId={report.id} label={summary ? "Regenerate summary" : "Summarize report"} />
+          )}
+        </div>
+      </header>
+
+      {steps.length > 0 ? (
+        <StepTabs steps={steps} lead={summary && <SummarySection summary={summary} stale={report.summaryStale} />} />
       ) : (
-        <p className="text-muted-foreground">This report folder has no report files.</p>
+        <p className="text-muted-foreground">This folder has no report files.</p>
       )}
     </div>
   );
