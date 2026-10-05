@@ -128,6 +128,10 @@ For local models with Ollama:
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
+### Web dashboard
+
+A local Next.js dashboard for browsing reports, running multi-ticker batches and summarizing results lives in [`dashboard/`](dashboard/README.md).
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:

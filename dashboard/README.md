@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TradingAgents Dashboard
 
-## Getting Started
+A local web UI for TradingAgents: browse saved reports, run analyses for several tickers as one batch, and get LLM summaries with a per-batch comparison table.
 
-First, run the development server:
+## Setup
+
+Requires the repo's Python environment (`.venv` with `tradingagents` installed) and your provider settings in the repo `.env` (the same ones the CLI uses: `TRADINGAGENTS_LLM_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_LLM`, API keys, ...).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd dashboard
+pnpm install
+pnpm dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Optional env vars (see `.env.example`): `TA_REPO_ROOT`, `TA_PYTHON` (default `../.venv/bin/python`), `TA_REPORTS_DIR` (default `../reports`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Reports are read from `reports/<TICKER>_<YYYYMMDD_HHMMSS>/`, the same folders the CLI writes.
+- **New batch** starts `python -m dashboard.worker.run_batch <id>` in the background. It runs the tickers one after another and records progress in `reports/_batches/<id>.json` (log: `<id>.log`). Only one batch runs at a time; closing the browser or restarting the dev server doesn't stop it. **Cancel** sends it SIGTERM.
+- **Summaries** come from your configured quick-think model and are saved as `summary.json` in each report folder. The batch page's comparison table is built from those files.
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm test                                                        # TypeScript (vitest)
+cd .. && .venv/bin/python -m pytest dashboard/worker/tests -q    # Python worker
+```
