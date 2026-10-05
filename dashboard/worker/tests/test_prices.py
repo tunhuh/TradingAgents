@@ -93,3 +93,30 @@ def test_main_exit_codes(reports, monkeypatch, capsys):
     monkeypatch.setattr(prices, "fetch_bars", fake_fetch())
     assert prices.main(["NVDA"]) == 0
     assert prices.main([]) == 2
+
+
+def test_all_failed_refresh_keeps_previous_fetched_at(reports):
+    (reports / "_prices").mkdir()
+    (reports / "_prices" / "_index.json").write_text(json.dumps({"fetched_at": "2026-01-01T00:00:00Z", "tickers": {}, "errors": {}}))
+    prices.refresh(["NVDA"], fetch=fake_fetch(fail={"NVDA", "SPY"}), config=CONFIG, today="2026-10-05")
+    index = read(reports / "_prices" / "_index.json")
+    assert index["fetched_at"] == "2026-01-01T00:00:00Z"
+    assert set(index["errors"]) == {"NVDA", "SPY"}
+
+
+def test_never_fetched_stays_unstamped_when_everything_fails(reports):
+    prices.refresh(["NVDA"], fetch=fake_fetch(fail={"NVDA", "SPY"}), config=CONFIG, today="2026-10-05")
+    assert read(reports / "_prices" / "_index.json")["fetched_at"] is None
+
+
+def test_mapping_and_progress_are_saved_before_a_timeout_could_cut_the_run(reports):
+    seen = []
+
+    def fetch(symbol, start):
+        # What a killed run would leave behind at this point.
+        seen.append(read(reports / "_prices" / "_index.json"))
+        return [{"date": "2026-10-02", "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5}]
+
+    prices.refresh(["NVDA", "MSFT"], fetch=fetch, config=CONFIG, today="2026-10-05")
+    assert seen[0]["tickers"]["NVDA"] == {"symbol": "NVDA", "benchmark": "SPY"}
+    assert "MSFT" in seen[0]["tickers"]

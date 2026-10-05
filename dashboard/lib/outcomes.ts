@@ -56,12 +56,22 @@ const DEFAULT_HORIZON: Horizon = { amount: 3, unit: "month", assumed: true };
 const LONG = new Set(["Buy", "Overweight"]);
 const SHORT = new Set(["Underweight", "Sell"]);
 
-const HORIZON_RE = /(\d+)\s*(?:(?:-|–|—|to)\s*(\d+)\s*)?(day|week|month|year)s?/i;
+// "3-6 months", "4–8 weeks", "6 to 12 months", "12-month", "30 trading days", "1-2 quarters".
+const HORIZON_RE = /\b(\d+)(?:\s*(?:-|–|—|to)\s*(\d+))?[\s-]*(?:trading\s+)?(day|week|month|quarter|year)s?\b/i;
+// Beyond these, the number is almost certainly not a duration (e.g. "into 2027 year-end").
+const MAX_AMOUNT: Record<Unit, number> = { day: 1000, week: 260, month: 60, year: 10 };
 
 export function parseHorizon(text: string | null): Horizon {
   const m = text ? HORIZON_RE.exec(text) : null;
   if (!m) return DEFAULT_HORIZON;
-  return { amount: Number(m[2] ?? m[1]), unit: m[3].toLowerCase() as Unit, assumed: false };
+  let amount = Number(m[2] ?? m[1]);
+  let unit = m[3].toLowerCase() as Unit | "quarter";
+  if (unit === "quarter") {
+    amount *= 3;
+    unit = "month";
+  }
+  if (amount < 1 || amount > MAX_AMOUNT[unit]) return DEFAULT_HORIZON;
+  return { amount, unit, assumed: false };
 }
 
 export function addHorizon(date: string, h: Horizon): string {
@@ -134,11 +144,14 @@ function scoreWindow(input: VerdictInput, entryIdx: number, days: number): Windo
   if (i >= bars.length) return { days, ret: null, alpha: null, benchmark: "pending", absolute: "pending" };
   const ret = bars[i].close / bars[entryIdx].close - 1;
 
-  // Alpha needs the benchmark's close on the very same date; a lagging series stays pending.
+  // The benchmark's last close on or before the window end — its calendar may differ (crypto
+  // trades on weekends, the index doesn't). Only once the benchmark has data on or after that
+  // date, so a lagging or stale benchmark series leaves alpha pending.
   let alpha: number | null = null;
   const benchEntry = lastIndexOnOrBefore(benchmarkBars, input.tradeDate);
   const benchEnd = lastIndexOnOrBefore(benchmarkBars, bars[i].date);
-  if (benchEntry >= 0 && benchEnd > benchEntry && benchmarkBars[benchEnd].date === bars[i].date) {
+  const benchCovers = (benchmarkBars[benchmarkBars.length - 1]?.date ?? "") >= bars[i].date;
+  if (benchEntry >= 0 && benchEnd >= benchEntry && benchCovers) {
     alpha = ret - (benchmarkBars[benchEnd].close / benchmarkBars[benchEntry].close - 1);
   }
   return { days, ret, alpha, benchmark: judge(rating, alpha), absolute: judge(rating, ret) };

@@ -75,6 +75,10 @@ def refresh(tickers: list[str], *, fetch=None, config: dict | None = None, today
 
     index_path = prices_dir() / "_index.json"
     index = _load_index(index_path)
+    # Save the mapping and each symbol's result as we go: the API stops the worker after
+    # a timeout, and whatever was fetched by then must still be usable.
+    index["tickers"].update(mapping)
+    write_json_atomic(index_path, index)
     fetched = 0
     for symbol in symbols:
         try:
@@ -85,9 +89,12 @@ def refresh(tickers: list[str], *, fetch=None, config: dict | None = None, today
             fetched += 1
         except Exception as exc:  # one bad symbol must not stop the rest
             index["errors"][symbol] = f"{type(exc).__name__}: {exc}"[:300]
-    index["tickers"].update(mapping)
-    index["fetched_at"] = now_iso()
-    write_json_atomic(index_path, index)
+        write_json_atomic(index_path, index)
+    # Only a refresh that actually fetched something counts as fresh; otherwise the
+    # dashboard keeps showing the old time and retries on the next visit.
+    if fetched:
+        index["fetched_at"] = now_iso()
+        write_json_atomic(index_path, index)
     return {"fetched": fetched, "errors": index["errors"]}
 
 

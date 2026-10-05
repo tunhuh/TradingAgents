@@ -23,6 +23,11 @@ describe("parseHorizon / addHorizon", () => {
     ["6 to 12 months", 12, "month", false],
     ["10 days", 10, "day", false],
     ["1 year", 1, "year", false],
+    ["6-month", 6, "month", false],
+    ["12-month price target", 12, "month", false],
+    ["next 30 trading days", 30, "day", false],
+    ["1-2 quarters", 6, "month", false],
+    ["into 2027 year-end", 3, "month", true],
     ["Medium term", 3, "month", true],
     [null, 3, "month", true],
   ])("%j → %d %s", (text, amount, unit, assumed) => {
@@ -125,5 +130,19 @@ describe("benchmark and absolute windows", () => {
     const o = scoreVerdict({ ...base, rating: "Buy", target: 200, stop: 50, bars: rising, benchmarkBars: index.slice(0, 12) });
     expect(o.d20.ret).toBeCloseTo(0.2);
     expect(o.d20).toMatchObject({ alpha: null, benchmark: "pending", absolute: "right" });
+  });
+});
+
+describe("benchmark on a different trading calendar", () => {
+  it("crypto bars on weekends use the benchmark's last close on or before that day", () => {
+    // Crypto trades every day; the index only on weekdays. Trade date Mon 3 Aug; day 5 is Sat 8 Aug.
+    const days = Array.from({ length: 30 }, (_, i) => new Date(Date.UTC(2026, 7, 3 + i)).toISOString().slice(0, 10));
+    const coin: Bar[] = days.map((date, i) => ({ date, high: 100 + i, low: 100 + i, close: 100 + i }));
+    const index = bars("2026-08-03", Array.from({ length: 22 }, (_, i) => 100 + i / 10));
+    const o = scoreVerdict({ ...base, tradeDate: "2026-08-03", rating: "Buy", target: 200, stop: 50, bars: coin, benchmarkBars: index });
+    // Index's Fri 7 Aug close is its 5th bar (100.4): alpha = 5% − 0.4%.
+    expect(o.d5.alpha).toBeCloseTo(0.05 - 0.004);
+    expect(o.d5.benchmark).toBe("right");
+    expect(o.d20.alpha).not.toBeNull();
   });
 });
