@@ -22,7 +22,8 @@ function Counts({ s }: { s: MeasureStats }) {
 }
 
 export default async function InsightsPage() {
-  const [cards, reports, index] = await Promise.all([loadScorecards(), listReports(), readPriceIndex()]);
+  const [reports, index] = await Promise.all([listReports(), readPriceIndex()]);
+  const cards = await loadScorecards({ reports });
   const summary = summarizeScorecards(cards);
   const weeks = runsPerWeek(reports.map((r) => r.runAt.slice(0, 10)), 26, todayLocal());
 

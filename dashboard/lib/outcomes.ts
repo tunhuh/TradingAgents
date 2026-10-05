@@ -99,7 +99,7 @@ function judge(rating: string, value: number | null): Verdict {
   const dir = direction(rating);
   if (dir === 1) return value > 0 ? "right" : "wrong";
   if (dir === -1) return value < 0 ? "right" : "wrong";
-  return Math.abs(value) <= HOLD_BAND ? "right" : "wrong";
+  return Math.abs(value) <= HOLD_BAND + 1e-9 ? "right" : "wrong"; // tolerance: 102/100 - 1 isn't exactly 0.02
 }
 
 function scoreLevels(input: VerdictInput, entryIdx: number): LevelsOutcome {

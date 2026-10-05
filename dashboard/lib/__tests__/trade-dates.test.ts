@@ -38,9 +38,22 @@ describe("batchTradeDates", () => {
   it("maps report ids from batch files to their trade date", async () => {
     mkdirSync(path.join(reports, "_batches"));
     writeFileSync(path.join(reports, "_batches", "20261005_151023_6aca.json"), JSON.stringify({
-      id: "20261005_151023_6aca", params: { trade_date: "2026-10-05" },
+      id: "20261005_151023_6aca", params: { tickers: ["SPY"], trade_date: "2026-10-05" },
       items: [{ report_id: "SPY_20261005_151903" }, { report_id: null }],
     }));
     expect([...(await batchTradeDates())]).toEqual([["SPY_20261005_151903", "2026-10-05"]]);
+  });
+});
+
+describe("results dir", () => {
+  it("honours the framework's TRADINGAGENTS_RESULTS_DIR when TA_RESULTS_DIR is unset", async () => {
+    delete process.env.TA_RESULTS_DIR;
+    process.env.TRADINGAGENTS_RESULTS_DIR = logs;
+    mkdirSync(path.join(logs, "SPY", "2026-10-03"), { recursive: true });
+    try {
+      expect(await resolveTradeDate(report, new Map())).toEqual({ date: "2026-10-03", source: "cli-log" });
+    } finally {
+      delete process.env.TRADINGAGENTS_RESULTS_DIR;
+    }
   });
 });

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { localRequestError } from "@/lib/guard";
 import { readPriceIndex } from "@/lib/prices";
+import { pythonBin } from "@/lib/paths";
 import { lastLine, runWorker } from "@/lib/python";
-import { listReports } from "@/lib/reports";
+import { listReports, parseReportFolderName } from "@/lib/reports";
 
-// Folder names that aren't market symbols (custom CLI save paths) are skipped.
+// Only folders named like the CLI's <TICKER>_<YYYYMMDD>_<HHMMSS>; custom save paths
+// ("earnings", "NVDA q3") aren't market symbols.
 const SYMBOL_RE = /^[A-Za-z0-9.\-^=+]{1,32}$/;
 let running = false; // one refresh at a time per server process
 
@@ -15,13 +17,14 @@ export async function POST(req: Request) {
 
   running = true;
   try {
-    const tickers = [...new Set((await listReports()).map((r) => r.ticker))].filter((t) => SYMBOL_RE.test(t)).sort();
+    const named = (await listReports()).filter((r) => parseReportFolderName(r.id).runAt !== null);
+    const tickers = [...new Set(named.map((r) => r.ticker))].filter((t) => SYMBOL_RE.test(t)).sort();
     if (!tickers.length) return NextResponse.json({ fetched_at: null, errors: {} });
     let result;
     try {
       result = await runWorker("dashboard.worker.prices", tickers, 120_000);
     } catch (e) {
-      return NextResponse.json({ error: `Could not start the Python worker: ${(e as Error).message}` }, { status: 500 });
+      return NextResponse.json({ error: `Could not start the Python worker (${pythonBin()}): ${(e as Error).message}. Set TA_PYTHON.` }, { status: 500 });
     }
     const index = await readPriceIndex();
     if (result.code !== 0) {

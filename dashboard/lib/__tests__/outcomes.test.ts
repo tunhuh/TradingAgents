@@ -146,3 +146,11 @@ describe("benchmark on a different trading calendar", () => {
     expect(o.d20.alpha).not.toBeNull();
   });
 });
+
+describe("Hold band edge", () => {
+  it("a Hold that moved exactly 2% is still right", () => {
+    const b = bars("2026-09-01", Array(25).fill(100).map((v, i) => (i === 20 ? 102 : v)));
+    expect(scoreVerdict({ ...base, rating: "Hold", target: 110, stop: 90, bars: b, benchmarkBars: flat("2026-09-01", 25) }).d20)
+      .toMatchObject({ absolute: "right", benchmark: "right" });
+  });
+});

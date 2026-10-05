@@ -18,7 +18,7 @@ function fakePython(body: string) {
 beforeEach(() => {
   dir = mkdtempSync(path.join(os.tmpdir(), "ta-prices-route-"));
   process.env.TA_REPORTS_DIR = dir;
-  for (const id of ["SPY_20261004_220413", "BTCUSD_20261004_220413", "NVDA q3 earnings"]) mkdirSync(path.join(dir, id));
+  for (const id of ["SPY_20261004_220413", "BTCUSD_20261004_220413", "NVDA q3 earnings", "earnings"]) mkdirSync(path.join(dir, id));
 });
 
 describe("POST /api/prices/refresh", () => {
@@ -45,5 +45,14 @@ describe("POST /api/prices/refresh", () => {
     expect((await first).status).toBe(200);
     const cross = new Request("http://localhost:3000/api/prices/refresh", { method: "POST", headers: { host: "localhost:3000", "sec-fetch-site": "cross-site" } });
     expect((await POST(cross)).status).toBe(403);
+  });
+});
+
+describe("POST /api/prices/refresh when python is missing", () => {
+  it("names TA_PYTHON", async () => {
+    process.env.TA_PYTHON = path.join(dir, "no-such-python");
+    const res = await POST(local());
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toMatch(/TA_PYTHON/);
   });
 });

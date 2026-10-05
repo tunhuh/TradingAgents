@@ -15,6 +15,7 @@ describe("outcome text", () => {
     expect(levelsSentence(l({}))).toBe("Open until 4 Jan 2027");
     expect(levelsSentence(l({ horizonAssumed: true }))).toBe("Open until 4 Jan 2027 (horizon assumed 3 months)");
     expect(levelsSentence(l({ verdict: "expired" }))).toBe("Neither level hit by 4 Jan 2027");
+    expect(levelsSentence(l({ verdict: "expired", horizonAssumed: true }))).toBe("Neither level hit by 4 Jan 2027 (horizon assumed 3 months)");
     expect(levelsSentence(l({ verdict: "unscored", note: "Hold has no direction", touched: "target", date: "2026-10-12" }))).toBe("Hold, not scored on levels (target reached 12 Oct 2026)");
     expect(levelsSentence(l({ verdict: "unscored", note: "no levels" }))).toBe("No target or stop to score");
     expect(levelsSentence(l({ verdict: "unscored", note: "levels don't match the rating" }))).toBe("Target and stop don’t match the rating, not scored");

@@ -24,10 +24,11 @@ export default async function TickerPage({ params, searchParams }: { params: Pro
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const reports = (await listReports()).filter((r) => r.ticker === ticker);
+  const all = await listReports();
+  const reports = all.filter((r) => r.ticker === ticker);
   if (!reports.length) notFound();
 
-  const cards = (await loadScorecards()).filter((c) => c.report.ticker === ticker).sort((a, b) => b.report.runAt.localeCompare(a.report.runAt));
+  const cards = (await loadScorecards({ reports: all, ticker })).sort((a, b) => b.report.runAt.localeCompare(a.report.runAt));
   const index = await readPriceIndex();
   const mapping = index.tickers[ticker];
   const bars = mapping ? await readBars(mapping.symbol) : null;

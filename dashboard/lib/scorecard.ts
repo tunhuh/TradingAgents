@@ -1,7 +1,7 @@
 import { scoreVerdict, type Bar, type Outcome, type Verdict } from "@/lib/outcomes";
 import { readBars, readPriceIndex, type PriceIndex } from "@/lib/prices";
 import { listReports } from "@/lib/reports";
-import { batchTradeDates, resolveTradeDate, type TradeDate } from "@/lib/trade-dates";
+import { batchTradeDates, resolveTradeDate, type LogDirCache, type TradeDate } from "@/lib/trade-dates";
 import { RATINGS, type Rating, type ReportListItem, type ReportSummary } from "@/lib/types";
 
 export interface Scorecard {
@@ -33,6 +33,7 @@ const isRated = (r: ReportListItem): r is ReportListItem & { summary: ReportSumm
 
 async function buildCards(reports: (ReportListItem & { summary: ReportSummary })[], index: PriceIndex): Promise<Scorecard[]> {
   const batchMap = await batchTradeDates();
+  const logDirs: LogDirCache = new Map();
   const barCache = new Map<string, Promise<Bar[] | null>>();
   const bars = (symbol: string) => {
     if (!barCache.has(symbol)) barCache.set(symbol, readBars(symbol));
@@ -41,7 +42,7 @@ async function buildCards(reports: (ReportListItem & { summary: ReportSummary })
 
   return Promise.all(
     reports.map(async (report) => {
-      const tradeDate = await resolveTradeDate(report, batchMap);
+      const tradeDate = await resolveTradeDate(report, batchMap, logDirs);
       const mapping = index.tickers[report.ticker] ?? null;
       const tickerBars = mapping ? await bars(mapping.symbol) : null;
       const benchBars = mapping ? await bars(mapping.benchmark) : null;
@@ -58,8 +59,10 @@ async function buildCards(reports: (ReportListItem & { summary: ReportSummary })
   );
 }
 
-export async function loadScorecards(): Promise<Scorecard[]> {
-  return buildCards((await listReports()).filter(isRated), await readPriceIndex());
+/** Scorecards for every rated report, or only `ticker`'s; pass `reports` to reuse a listing. */
+export async function loadScorecards(opts: { reports?: ReportListItem[]; ticker?: string } = {}): Promise<Scorecard[]> {
+  const reports = (opts.reports ?? (await listReports())).filter((r) => isRated(r) && (!opts.ticker || r.ticker === opts.ticker));
+  return buildCards(reports as (ReportListItem & { summary: ReportSummary })[], await readPriceIndex());
 }
 
 export async function loadScorecard(reportId: string): Promise<Scorecard | null> {

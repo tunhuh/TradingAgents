@@ -120,3 +120,19 @@ def test_mapping_and_progress_are_saved_before_a_timeout_could_cut_the_run(repor
     prices.refresh(["NVDA", "MSFT"], fetch=fetch, config=CONFIG, today="2026-10-05")
     assert seen[0]["tickers"]["NVDA"] == {"symbol": "NVDA", "benchmark": "SPY"}
     assert "MSFT" in seen[0]["tickers"]
+
+
+def test_fetch_bars_drops_todays_unfinished_bar(monkeypatch):
+    tz = "America/New_York"
+    today = pd.Timestamp.now(tz=tz).normalize()
+    idx = pd.DatetimeIndex([today - pd.Timedelta(days=1), today])
+    df = pd.DataFrame({"Open": [1.0, 2.0], "High": [2.0, 3.0], "Low": [0.5, 1.0], "Close": [1.5, 2.5]}, index=idx)
+    monkeypatch.setattr(prices.yf, "Ticker", lambda s: type("T", (), {"history": lambda self, **k: df})())
+    assert [b["date"] for b in prices.fetch_bars("NVDA", "2024-10-05")] == [(today - pd.Timedelta(days=1)).strftime("%Y-%m-%d")]
+
+
+def test_errors_for_symbols_no_longer_requested_are_pruned(reports):
+    (reports / "_prices").mkdir()
+    (reports / "_prices" / "_index.json").write_text(json.dumps({"fetched_at": None, "tickers": {}, "errors": {"EARNINGS": "ValueError: gone"}}))
+    prices.refresh(["NVDA"], fetch=fake_fetch(fail={"ZZZZ"}), config=CONFIG, today="2026-10-05")
+    assert read(reports / "_prices" / "_index.json")["errors"] == {}

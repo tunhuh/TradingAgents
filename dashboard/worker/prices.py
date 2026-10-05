@@ -14,6 +14,7 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import pandas as pd
 import yfinance as yf
 
 from dashboard.worker.common import load_config, now_iso, reports_dir, write_json_atomic
@@ -29,8 +30,14 @@ def fetch_bars(symbol: str, start: str) -> list[dict]:
     df = yf.Ticker(symbol).history(start=start, auto_adjust=False)
     if df is None or df.empty:
         raise ValueError(f"no price data for {symbol}")
+    # Today's bar may still be trading (yfinance includes the live session), so it isn't a
+    # close yet. Judged in the exchange's own timezone; it appears once the day is over.
+    tz = getattr(df.index, "tz", None)
+    today = (pd.Timestamp.now(tz=tz) if tz is not None else pd.Timestamp.now()).strftime("%Y-%m-%d")
     bars = []
     for ts, row in df.iterrows():
+        if ts.strftime("%Y-%m-%d") >= today:
+            continue
         values = [row["Open"], row["High"], row["Low"], row["Close"]]
         if any(v is None or math.isnan(float(v)) for v in values):
             continue
@@ -85,6 +92,9 @@ def refresh(tickers: list[str], *, fetch=None, config: dict | None = None, today
         except Exception as exc:  # one bad symbol must not stop the rest
             index["errors"][symbol] = f"{type(exc).__name__}: {exc}"[:300]
         write_json_atomic(index_path, index)
+    # Errors only describe symbols this refresh asked for; drop leftovers from removed reports.
+    index["errors"] = {s: msg for s, msg in index["errors"].items() if s in symbols}
+    write_json_atomic(index_path, index)
     # Only a refresh that actually fetched something counts as fresh; otherwise the
     # dashboard keeps showing the old time and retries on the next visit.
     if fetched:

@@ -16,8 +16,9 @@ export function levelsSentence(l: LevelsOutcome): string {
   }
   if (l.touched === "both" && l.date) return `Target and stop both hit on ${day(l.date)}, counted as a miss`;
   if (l.touched && l.date) return `${l.touched === "target" ? "Target" : "Stop"} hit on ${day(l.date)}`;
-  if (l.verdict === "expired") return `Neither level hit by ${day(l.horizonEnd)}`;
-  return `Open until ${day(l.horizonEnd)}${l.horizonAssumed ? " (horizon assumed 3 months)" : ""}`;
+  const assumed = l.horizonAssumed ? " (horizon assumed 3 months)" : "";
+  if (l.verdict === "expired") return `Neither level hit by ${day(l.horizonEnd)}${assumed}`;
+  return `Open until ${day(l.horizonEnd)}${assumed}`;
 }
 
 export function benchmarkSentence(outcome: Outcome, benchmark: string | null): string {
