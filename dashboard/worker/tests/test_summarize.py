@@ -107,3 +107,11 @@ def test_cli_reports_errors_on_stderr(tmp_path, monkeypatch, capsys):
     assert summarize.main(["../etc"]) == 1
     assert "invalid report id" in capsys.readouterr().err
     assert summarize.main([]) == 2
+
+
+def test_list_fields_accept_null_and_single_string(report):
+    loose = dict(GOOD, key_risks=None, bull_points="Only one point", catalysts_to_watch=None)
+    data = summarize_report(report, FakeLLM(structured=RuntimeError(), text=json.dumps(loose)), "m")
+    assert data["key_risks"] == []
+    assert data["bull_points"] == ["Only one point"]
+    assert data["catalysts_to_watch"] == []

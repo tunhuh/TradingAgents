@@ -19,12 +19,13 @@ export function pythonBin(): string {
   return process.env.TA_PYTHON ?? path.join(repoRoot(), ".venv", "bin", "python");
 }
 
-// First char excludes "_" so internal folders like _batches are never addressable as reports.
-const REPORT_ID_RE = /^[A-Za-z0-9.\-^=+][A-Za-z0-9._\-^=+]*$/;
+// One path segment (custom CLI save paths may contain spaces etc.). A leading
+// "_" or "." excludes internal folders like _batches, hidden dirs, and "..".
+const REPORT_ID_RE = /^[^_./\\\0][^/\\\0]*$/;
 export const BATCH_ID_RE = /^\d{8}_\d{6}_[0-9a-f]{4}$/;
 
 export function resolveReportDir(id: string): string {
-  if (!REPORT_ID_RE.test(id) || /^\.+$/.test(id)) throw new NotFoundError(`Unknown report: ${id}`);
+  if (!REPORT_ID_RE.test(id)) throw new NotFoundError(`Unknown report: ${id}`);
   const base = reportsDir();
   const dir = path.resolve(base, id);
   if (path.dirname(dir) !== base) throw new NotFoundError(`Unknown report: ${id}`);
@@ -34,4 +35,13 @@ export function resolveReportDir(id: string): string {
 export function resolveBatchFile(id: string): string {
   if (!BATCH_ID_RE.test(id)) throw new NotFoundError(`Unknown batch: ${id}`);
   return path.join(batchesDir(), `${id}.json`);
+}
+
+/** Route params arrive percent-encoded (e.g. "NVDA%20q3"); a malformed escape is a 404, not a crash. */
+export function decodeRouteParam(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    throw new NotFoundError(`Malformed id: ${raw}`);
+  }
 }

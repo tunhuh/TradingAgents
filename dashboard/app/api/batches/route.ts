@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   batchLogPath, createBatchRecord, findActiveBatch, listBatches, newBatchId, validateParams, writeBatch,
 } from "@/lib/batches";
+import { localRequestError } from "@/lib/guard";
 import { pythonBin } from "@/lib/paths";
 import { spawnWorker } from "@/lib/python";
 
@@ -10,6 +11,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const denied = localRequestError(req, { requireJson: true });
+  if (denied) return NextResponse.json({ error: denied }, { status: 403 });
   let body: unknown;
   try {
     body = await req.json();

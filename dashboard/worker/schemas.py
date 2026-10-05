@@ -45,6 +45,14 @@ class ReportSummary(BaseModel):
     def _coerce_price(cls, value):
         return _coerce_optional_float(value)
 
+    @field_validator("bull_points", "key_risks", "catalysts_to_watch", mode="before")
+    @classmethod
+    def _listify(cls, value):
+        # LLMs write null for "none" and a bare string for a single item.
+        if value is None:
+            return []
+        return [value] if isinstance(value, str) else value
+
     @field_validator("bull_points", "key_risks", "catalysts_to_watch", mode="after")
     @classmethod
     def _cap_items(cls, value: list[str]) -> list[str]:

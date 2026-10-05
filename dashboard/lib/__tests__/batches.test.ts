@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  createBatchRecord, getBatch, isActive, isOrphaned, listBatches, newBatchId, validateParams, writeBatch,
+  createBatchRecord, getBatch, isActive, isOrphaned, isWorkerProcess, listBatches, newBatchId, validateParams, writeBatch,
 } from "@/lib/batches";
 import { NotFoundError } from "@/lib/paths";
 import type { Batch } from "@/lib/types";
@@ -115,5 +115,27 @@ describe("isActive / isOrphaned", () => {
       expect(isActive(mk(s, 123), now, alive)).toBe(false);
       expect(isOrphaned(mk(s, 123), now, dead)).toBe(false);
     }
+  });
+});
+
+describe("isWorkerProcess", () => {
+  const procWith = (pid: number, argv: string[]) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "ta-proc-"));
+    mkdirSync(path.join(root, String(pid)));
+    writeFileSync(path.join(root, String(pid), "cmdline"), argv.join("\0") + "\0");
+    return root;
+  };
+
+  it("recognizes this batch's run_batch worker", () => {
+    const root = procWith(42, ["/repo/.venv/bin/python", "-m", "dashboard.worker.run_batch", "20261005_090000_aaaa"]);
+    expect(isWorkerProcess(42, "20261005_090000_aaaa", root)).toBe(true);
+  });
+  it("rejects a reused pid running something else, or another batch's worker", () => {
+    expect(isWorkerProcess(42, "20261005_090000_aaaa", procWith(42, ["node", "next-server"]))).toBe(false);
+    const other = procWith(42, ["python", "-m", "dashboard.worker.run_batch", "20261005_090000_bbbb"]);
+    expect(isWorkerProcess(42, "20261005_090000_aaaa", other)).toBe(false);
+  });
+  it("treats a missing process as not a worker", () => {
+    expect(isWorkerProcess(42, "20261005_090000_aaaa", mkdtempSync(path.join(os.tmpdir(), "ta-proc-")))).toBe(false);
   });
 });

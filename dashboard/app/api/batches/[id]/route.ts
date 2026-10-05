@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBatch, isActive, isOrphaned, writeBatch } from "@/lib/batches";
+import { localRequestError } from "@/lib/guard";
 import { NotFoundError } from "@/lib/paths";
 import type { Batch } from "@/lib/types";
 
@@ -20,13 +21,19 @@ export async function GET(_req: Request, { params }: Ctx) {
   return NextResponse.json({ ...batch, active: isActive(batch), orphaned: isOrphaned(batch) });
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
+  const denied = localRequestError(req);
+  if (denied) return NextResponse.json({ error: denied }, { status: 403 });
   const batch = await load((await params).id);
   if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
 
   if (isActive(batch) && batch.pid != null) {
-    process.kill(batch.pid, "SIGTERM");
-    return NextResponse.json({ ok: true, action: "signalled" });
+    try {
+      process.kill(batch.pid, "SIGTERM");
+      return NextResponse.json({ ok: true, action: "signalled" });
+    } catch {
+      // Exited between the check and the signal; fall through to the orphan path.
+    }
   }
   if (isOrphaned(batch)) {
     batch.status = "failed";

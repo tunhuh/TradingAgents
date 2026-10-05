@@ -9,8 +9,10 @@ Requires the repo's Python environment (`.venv` with `tradingagents` installed) 
 ```bash
 cd dashboard
 pnpm install
-pnpm dev          # http://localhost:3000
+pnpm dev          # http://127.0.0.1:3000
 ```
+
+The server binds to `127.0.0.1` only, and the endpoints that start batches, run summaries or cancel only accept requests from the dashboard itself (localhost `Host`/`Origin`, no cross-site requests). There is no login, so keep it that way: don't expose it on your network.
 
 Optional env vars (see `.env.example`): `TA_REPO_ROOT`, `TA_PYTHON` (default `../.venv/bin/python`), `TA_REPORTS_DIR` (default `../reports`).
 

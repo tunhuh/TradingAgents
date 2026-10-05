@@ -1,4 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { todayLocal, toLocalNaive } from "@/lib/format";
@@ -111,25 +113,37 @@ export async function listBatches(): Promise<Batch[]> {
   return batches.filter((b): b is Batch => b !== null).sort((a, b) => b.id.localeCompare(a.id));
 }
 
-export function isPidAlive(pid: number): boolean {
+/**
+ * Whether `pid` is this batch's run_batch worker. A bare liveness check is not
+ * enough: after a crash or reboot the pid can belong to an unrelated process,
+ * which would then block new batches and receive Cancel's SIGTERM.
+ */
+export function isWorkerProcess(pid: number, batchId: string, procRoot = "/proc"): boolean {
+  let argv: string[];
   try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === "EPERM";
+    if (procRoot === "/proc" && !existsSync("/proc")) {
+      argv = execFileSync("ps", ["-o", "args=", "-p", String(pid)], { encoding: "utf-8" }).trim().split(/\s+/);
+    } else {
+      argv = readFileSync(`${procRoot}/${pid}/cmdline`, "utf-8").split("\0");
+    }
+  } catch {
+    return false; // no such process (ps exits non-zero too)
   }
+  return argv.includes("dashboard.worker.run_batch") && argv.includes(batchId);
 }
 
 const isOpen = (b: Batch) => b.status === "queued" || b.status === "running";
 
-export function isActive(batch: Batch, now: number = Date.now(), alive: (pid: number) => boolean = isPidAlive): boolean {
+type WorkerCheck = (pid: number, batchId: string) => boolean;
+
+export function isActive(batch: Batch, now: number = Date.now(), alive: WorkerCheck = isWorkerProcess): boolean {
   if (!isOpen(batch)) return false;
   if (batch.pid == null) return now - Date.parse(batch.created_at) < QUEUED_GRACE_MS;
-  return alive(batch.pid);
+  return alive(batch.pid, batch.id);
 }
 
 /** Non-terminal status but the worker is gone (crashed, killed, machine rebooted). */
-export function isOrphaned(batch: Batch, now: number = Date.now(), alive: (pid: number) => boolean = isPidAlive): boolean {
+export function isOrphaned(batch: Batch, now: number = Date.now(), alive: WorkerCheck = isWorkerProcess): boolean {
   return isOpen(batch) && !isActive(batch, now, alive);
 }
 

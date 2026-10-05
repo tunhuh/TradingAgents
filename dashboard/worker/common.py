@@ -16,8 +16,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# First char excludes "_" so internal folders like _batches are never addressed as reports.
-_REPORT_ID_RE = re.compile(r"^[A-Za-z0-9.\-^=+][A-Za-z0-9._\-^=+]*$")
+# One path segment (custom CLI save paths may contain spaces etc.). A leading
+# "_" or "." excludes internal folders like _batches, hidden dirs, and "..".
+_REPORT_ID_RE = re.compile(r"^[^_./\\\x00][^/\\\x00]*$")
 
 
 def reports_dir() -> Path:
@@ -30,7 +31,7 @@ def batches_dir() -> Path:
 
 def resolve_report_dir(report_id: str) -> Path:
     """Return the report folder for ``report_id``; reject anything outside reports_dir()."""
-    if not _REPORT_ID_RE.fullmatch(report_id or "") or set(report_id) == {"."}:
+    if not _REPORT_ID_RE.fullmatch(report_id or ""):
         raise ValueError(f"invalid report id: {report_id!r}")
     base = reports_dir().resolve()
     path = (base / report_id).resolve()

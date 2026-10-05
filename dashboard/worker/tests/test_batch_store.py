@@ -80,3 +80,12 @@ def test_resolve_report_dir(reports):
             resolve_report_dir(bad)
     with pytest.raises(FileNotFoundError):
         resolve_report_dir("NOPE_20261004_220413")
+
+
+def test_resolve_report_dir_accepts_custom_folder_names(reports):
+    for name in ["NVDA q3 earnings", "SPY (final) 50%", "Ünïcode run"]:
+        (reports / name).mkdir()
+        assert resolve_report_dir(name) == (reports / name).resolve()
+    for bad in [".hidden", "a\\b", "x\0y"]:
+        with pytest.raises(ValueError):
+            resolve_report_dir(bad)
