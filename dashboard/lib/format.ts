@@ -30,3 +30,16 @@ export function formatDay(runAt: string): string {
 export function formatIsoWhen(iso: string | null | undefined): string {
   return iso ? formatWhen(toLocalNaive(new Date(iso))) : "—";
 }
+
+/** 0.0312 → "3.1%" (or "+3.1%" when signed). Uses a true minus sign. */
+export function formatPercent(n: number | null | undefined, opts: { signed?: boolean; digits?: number } = {}): string {
+  if (n == null) return "—";
+  const text = Math.abs(n * 100).toFixed(opts.digits ?? 1) + "%";
+  if (n < 0) return "−" + text;
+  return opts.signed && n > 0 ? "+" + text : text;
+}
+
+/** Hit rate 0–1 → "67%". */
+export function formatRate(n: number | null | undefined): string {
+  return n == null ? "—" : `${Math.round(n * 100)}%`;
+}
