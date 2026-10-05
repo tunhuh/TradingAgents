@@ -31,6 +31,8 @@ export interface ReportListItem {
   runAt: string;
   summary: ReportSummary | null;
   summaryStale: boolean;
+  /** complete_report.md exists, so the report can be summarized. */
+  hasReport: boolean;
 }
 
 export interface ReportSection {

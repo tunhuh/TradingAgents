@@ -25,6 +25,8 @@ class Cancelled(BaseException):
 
 
 def _raise_cancelled(signum, frame):
+    # A second Cancel while we unwind must not interrupt finalize(); ignore further SIGTERMs.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     raise Cancelled()
 
 

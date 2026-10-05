@@ -80,19 +80,28 @@ export function createBatchRecord(params: BatchParams, id: string, now: Date = n
 export async function writeBatch(batch: Batch): Promise<void> {
   const file = resolveBatchFile(batch.id);
   await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.tmp`;
+  const tmp = `${file}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`; // unique per writer
   await fs.writeFile(tmp, JSON.stringify(batch, null, 2), "utf-8");
   await fs.rename(tmp, file);
 }
 
+function isBatchShape(data: unknown, id: string): data is Batch {
+  const b = data as Partial<Batch> | null;
+  return !!b && typeof b === "object" && b.id === id && Array.isArray(b.items) && !!b.params && Array.isArray(b.params.tickers);
+}
+
 export async function getBatch(id: string): Promise<Batch> {
   const file = resolveBatchFile(id);
+  let data: unknown;
   try {
-    return JSON.parse(await fs.readFile(file, "utf-8")) as Batch;
+    data = JSON.parse(await fs.readFile(file, "utf-8"));
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") throw new NotFoundError(`Unknown batch: ${id}`);
+    if ((e as NodeJS.ErrnoException).code === "ENOENT" || e instanceof SyntaxError) throw new NotFoundError(`Unknown batch: ${id}`);
     throw e;
   }
+  // A hand-edited or foreign file must not crash the pages or block new batches.
+  if (!isBatchShape(data, id)) throw new NotFoundError(`Unreadable batch: ${id}`);
+  return data;
 }
 
 export async function listBatches(): Promise<Batch[]> {
@@ -153,11 +162,23 @@ export function batchLogPath(id: string): string {
   return resolveBatchFile(id).replace(/\.json$/, ".log");
 }
 
+const LOG_TAIL_BYTES = 64 * 1024;
+
+/** Last `lines` lines of the worker log, reading at most its final 64 KB (the page polls it). */
 export async function readLogTail(id: string, lines = 50): Promise<string> {
+  let handle: fs.FileHandle | undefined;
   try {
-    const text = await fs.readFile(batchLogPath(id), "utf-8");
+    handle = await fs.open(batchLogPath(id), "r");
+    const { size } = await handle.stat();
+    const start = Math.max(0, size - LOG_TAIL_BYTES);
+    const buf = Buffer.alloc(size - start);
+    await handle.read(buf, 0, buf.length, start);
+    let text = buf.toString("utf-8");
+    if (start > 0) text = text.slice(text.indexOf("\n") + 1); // drop the partial first line
     return text.split("\n").slice(-lines - 1).join("\n").trimEnd();
   } catch {
     return "";
+  } finally {
+    await handle?.close();
   }
 }

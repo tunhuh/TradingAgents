@@ -54,7 +54,9 @@ export default async function VerdictsPage() {
                 </li>
               ))}
             </ul>
-            <SummarizeAllButton reports={unrated.map((r) => ({ id: r.id, ticker: r.ticker }))} />
+            {unrated.some((r) => r.hasReport) && (
+              <SummarizeAllButton reports={unrated.filter((r) => r.hasReport).map((r) => ({ id: r.id, ticker: r.ticker }))} />
+            )}
           </div>
         )}
       </section>

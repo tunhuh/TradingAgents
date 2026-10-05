@@ -36,6 +36,23 @@ describe("DELETE /api/batches/[id]", () => {
     expect(await res.json()).toMatchObject({ ok: true, action: "marked-failed" });
     expect(bystander.exitCode).toBeNull();
     expect(bystander.signalCode).toBeNull();
-    expect(JSON.parse(readFileSync(path.join(dir, "_batches", `${id}.json`), "utf-8")).status).toBe("failed");
+    const saved = JSON.parse(readFileSync(path.join(dir, "_batches", `${id}.json`), "utf-8"));
+    expect(saved.status).toBe("failed");
+    expect(saved.items[0]).toMatchObject({ status: "failed", error: "Worker exited unexpectedly" });
   });
+});
+
+describe("DELETE when there is nothing to stop", () => {
+  it("returns action none for a finished batch", async () => {
+    const id = "20261005_090000_dddd";
+    const batch = createBatchRecord(
+      { tickers: ["NVDA"], trade_date: "2026-10-03", analysts: ["market"], max_debate_rounds: 1, max_risk_discuss_rounds: 1, auto_summarize: false },
+      id,
+    );
+    batch.status = "done";
+    await writeBatch(batch);
+    const res = await DELETE(new Request(`http://localhost:3000/api/batches/${id}`, { method: "DELETE", headers: { host: "localhost:3000" } }), { params: Promise.resolve({ id }) });
+    expect(await res.json()).toEqual({ ok: true, action: "none" });
+  });
+
 });

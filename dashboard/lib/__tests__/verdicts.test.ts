@@ -3,7 +3,7 @@ import type { ReportListItem, ReportSummary } from "@/lib/types";
 import { groupByRating, latestPerTicker } from "@/lib/verdicts";
 
 const item = (id: string, ticker: string, runAt: string, rating?: string): ReportListItem => ({
-  id, ticker, runAt, summaryStale: false,
+  id, ticker, runAt, summaryStale: false, hasReport: true,
   summary: rating ? ({ rating } as ReportSummary) : null,
 });
 

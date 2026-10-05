@@ -15,7 +15,7 @@ describe("measureStats", () => {
 });
 
 const card = (rating: string, levels: Verdict, bench: Verdict, abs: Verdict, alpha: number | null): Scorecard => ({
-  report: { id: rating + Math.random(), ticker: "X", runAt: "2026-10-01T00:00:00", summaryStale: false, summary: { rating } as ReportSummary },
+  report: { id: rating + Math.random(), ticker: "X", runAt: "2026-10-01T00:00:00", summaryStale: false, hasReport: true, summary: { rating } as ReportSummary },
   tradeDate: { date: "2026-10-01", source: "batch" },
   symbol: "X", benchmark: "SPY", priceError: null,
   outcome: {

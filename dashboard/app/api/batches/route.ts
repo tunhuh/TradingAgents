@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  batchLogPath, createBatchRecord, findActiveBatch, listBatches, newBatchId, validateParams, writeBatch,
+  batchLogPath, createBatchRecord, findActiveBatch, getBatch, listBatches, newBatchId, validateParams, writeBatch,
 } from "@/lib/batches";
 import { localRequestError } from "@/lib/guard";
 import { pythonBin } from "@/lib/paths";
@@ -29,13 +29,21 @@ export async function POST(req: Request) {
 
   const batch = createBatchRecord(v.params, newBatchId());
   await writeBatch(batch);
+  let pid: number;
   try {
-    await spawnWorker("dashboard.worker.run_batch", [batch.id], batchLogPath(batch.id));
+    pid = await spawnWorker("dashboard.worker.run_batch", [batch.id], batchLogPath(batch.id));
   } catch (e) {
     batch.status = "failed";
     batch.error = `Could not start the Python worker (${pythonBin()}): ${(e as Error).message}. Set TA_PYTHON.`;
     await writeBatch(batch);
     return NextResponse.json({ error: batch.error }, { status: 500 });
+  }
+  // Record the pid now, so a worker that dies during startup frees the batch at once instead of
+  // after the queued grace period. Only while the worker hasn't written its own state yet.
+  const current = await getBatch(batch.id).catch(() => null);
+  if (current && current.pid == null && current.status === "queued") {
+    current.pid = pid;
+    await writeBatch(current);
   }
   return NextResponse.json({ id: batch.id }, { status: 201 });
 }

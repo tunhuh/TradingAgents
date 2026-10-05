@@ -143,3 +143,55 @@ def test_writes_meta_json_with_trade_date(reports):
     assert nvda == {"ticker": "NVDA", "trade_date": "2026-10-03", "asset_type": "stock",
                     "analysts": ["market", "news", "fundamentals"], "batch_id": "20261005_101500_a1b2"}
     assert btc["ticker"] == "BTC-USD" and btc["asset_type"] == "crypto" and btc["analysts"] == ["market", "news"]
+
+
+def test_second_sigterm_while_unwinding_is_ignored():
+    import signal
+
+    previous = signal.signal(signal.SIGTERM, run_batch._raise_cancelled)
+    try:
+        with pytest.raises(run_batch.Cancelled):
+            run_batch._raise_cancelled(signal.SIGTERM, None)
+        assert signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+SLOW_WORKER = """
+import sys, time
+from dashboard.worker import run_batch
+
+class SlowGraph:
+    def propagate(self, ticker, date, asset_type):
+        print("STARTED", flush=True)
+        time.sleep(30)
+
+run_batch._default_graph_factory = lambda analysts, config: SlowGraph()
+run_batch.load_config = lambda: {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+sys.exit(run_batch.main([sys.argv[1]]))
+"""
+
+
+def test_sigterm_mid_ticker_cancels_a_real_worker_process(reports):
+    import os
+    import signal
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    write_batch(reports, ["NVDA", "MSFT"], auto_summarize=False)
+    repo = Path(run_batch.__file__).resolve().parents[2]
+    proc = subprocess.Popen(
+        [sys.executable, "-c", SLOW_WORKER, "20261005_101500_a1b2"],
+        cwd=repo, env={**os.environ, "TA_REPORTS_DIR": str(reports)},
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+    )
+    try:
+        assert proc.stdout.readline().strip() == "STARTED"  # first ticker is mid-analysis
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=20) == 0
+    finally:
+        proc.kill()
+    batch = saved(reports)
+    assert batch["status"] == "cancelled"
+    assert [i["status"] for i in batch["items"]] == ["cancelled", "cancelled"]

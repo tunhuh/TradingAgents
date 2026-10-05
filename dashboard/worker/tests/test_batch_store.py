@@ -89,3 +89,19 @@ def test_resolve_report_dir_accepts_custom_folder_names(reports):
     for bad in [".hidden", "a\\b", "x\0y"]:
         with pytest.raises(ValueError):
             resolve_report_dir(bad)
+
+
+def test_atomic_writes_use_a_unique_temp_file(reports, monkeypatch):
+    from dashboard.worker import common
+
+    sources = []
+    real_replace = common.os.replace
+
+    def spy(src, dst):
+        sources.append(str(src))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(common.os, "replace", spy)
+    common.write_json_atomic(reports / "x.json", {"a": 1})
+    common.write_json_atomic(reports / "x.json", {"a": 2})
+    assert len(set(sources)) == 2  # concurrent writers of one file never share a temp file

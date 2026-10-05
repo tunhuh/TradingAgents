@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import re
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -49,7 +50,9 @@ def now_iso() -> str:
 def write_json_atomic(path: Path, data) -> None:
     """Write JSON via a temp file + rename so readers never see a partial file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
+    # Unique per write: two processes updating the same file (e.g. two summaries of one
+    # report) must not share a temp file.
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
     tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     os.replace(tmp, path)
 

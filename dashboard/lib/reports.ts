@@ -76,7 +76,8 @@ async function loadListItem(id: string): Promise<ReportListItem> {
   const parsed = parseReportFolderName(id);
   const runAt = parsed.runAt ?? toLocalNaive((await fs.stat(dir)).mtime);
   const { summary, stale } = await readSummary(dir);
-  return { id, ticker: parsed.ticker, runAt, summary, summaryStale: stale };
+  const hasReport = !!(await fs.stat(path.join(dir, "complete_report.md")).catch(() => null))?.isFile();
+  return { id, ticker: parsed.ticker, runAt, summary, summaryStale: stale, hasReport };
 }
 
 export async function listReports(): Promise<ReportListItem[]> {

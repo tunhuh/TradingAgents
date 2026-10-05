@@ -39,7 +39,10 @@ export async function DELETE(req: Request, { params }: Ctx) {
     batch.status = "failed";
     batch.error = "Worker exited unexpectedly";
     for (const item of batch.items) {
-      if (item.status === "pending" || item.status === "running") item.status = "failed";
+      if (item.status === "pending" || item.status === "running") {
+        item.status = "failed";
+        item.error = item.error ?? "Worker exited unexpectedly";
+      }
     }
     batch.updated_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     await writeBatch(batch);

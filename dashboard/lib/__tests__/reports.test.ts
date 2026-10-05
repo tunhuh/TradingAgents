@@ -99,3 +99,13 @@ describe("getReport", () => {
     await expect(getReport("_batches")).rejects.toThrow(NotFoundError);
   });
 });
+
+describe("hasReport", () => {
+  it("is false for a folder without complete_report.md", async () => {
+    makeReport("SPY_20261004_220413");
+    mkdirSync(path.join(dir, "EMPTY_20261004_220413"));
+    const items = await listReports();
+    expect(items.find((r) => r.id === "SPY_20261004_220413")!.hasReport).toBe(true);
+    expect(items.find((r) => r.id === "EMPTY_20261004_220413")!.hasReport).toBe(false);
+  });
+});

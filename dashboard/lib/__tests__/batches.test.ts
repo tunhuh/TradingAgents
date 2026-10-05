@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  createBatchRecord, getBatch, isActive, isOrphaned, isWorkerProcess, listBatches, newBatchId, validateParams, writeBatch,
+  createBatchRecord, getBatch, isActive, isOrphaned, isWorkerProcess, listBatches, newBatchId, readLogTail, validateParams, writeBatch,
 } from "@/lib/batches";
 import { NotFoundError } from "@/lib/paths";
 import type { Batch } from "@/lib/types";
@@ -137,5 +137,32 @@ describe("isWorkerProcess", () => {
   });
   it("treats a missing process as not a worker", () => {
     expect(isWorkerProcess(42, "20261005_090000_aaaa", mkdtempSync(path.join(os.tmpdir(), "ta-proc-")))).toBe(false);
+  });
+});
+
+describe("robustness", () => {
+  const params = { tickers: ["NVDA"], trade_date: "2026-10-03", analysts: ["market" as const], max_debate_rounds: 1, max_risk_discuss_rounds: 1, auto_summarize: false };
+
+  it("concurrent writes of one batch never collide on a temp file", async () => {
+    const batch = createBatchRecord(params, "20261005_090000_aaaa");
+    await expect(Promise.all(Array.from({ length: 30 }, () => writeBatch(batch)))).resolves.toBeDefined();
+  });
+
+  it("skips and 404s a batch file whose JSON is the wrong shape", async () => {
+    mkdirSync(path.join(dir, "_batches"), { recursive: true });
+    writeFileSync(path.join(dir, "_batches", "20261005_100000_cccc.json"), "{}");
+    await writeBatch(createBatchRecord(params, "20261005_090000_bbbb"));
+    expect((await listBatches()).map((b) => b.id)).toEqual(["20261005_090000_bbbb"]);
+    await expect(getBatch("20261005_100000_cccc")).rejects.toThrow(NotFoundError);
+  });
+
+  it("reads only the end of a large worker log", async () => {
+    mkdirSync(path.join(dir, "_batches"), { recursive: true });
+    const lines = Array.from({ length: 2000 }, (_, i) => `line ${String(i).padStart(4, "0")} ${"x".repeat(88)}`);
+    writeFileSync(path.join(dir, "_batches", "20261005_090000_aaaa.log"), lines.join("\n") + "\n");
+    const tail = (await readLogTail("20261005_090000_aaaa", 1000)).split("\n");
+    expect(tail.at(-1)).toBe(lines.at(-1));
+    expect(tail.length).toBeLessThan(1000); // bounded read: ~64 KB of 100-byte lines
+    expect(tail[0]).toMatch(/^line \d{4} /); // never starts mid-line
   });
 });

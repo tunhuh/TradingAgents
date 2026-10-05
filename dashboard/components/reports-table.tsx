@@ -66,7 +66,13 @@ export function ReportsTable({ reports }: { reports: ReportListItem[] }) {
                 <td className={`${td} text-right`}>{formatPrice(r.summary?.price_target)}</td>
                 <td className={`${td} whitespace-nowrap`}>{r.summary?.time_horizon ?? "—"}</td>
                 <td className={`${td} max-w-[28rem]`}>
-                  {r.summary ? <span className="line-clamp-2 text-muted-foreground">{r.summary.tldr}</span> : <SummarizeButton reportId={r.id} />}
+                  {r.summary ? (
+                    <span className="line-clamp-2 text-muted-foreground">{r.summary.tldr}</span>
+                  ) : r.hasReport ? (
+                    <SummarizeButton reportId={r.id} />
+                  ) : (
+                    <span className="text-muted-foreground">No report file to summarize</span>
+                  )}
                 </td>
               </tr>
             ))}
