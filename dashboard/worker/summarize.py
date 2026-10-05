@@ -8,13 +8,12 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 from pydantic import ValidationError
 
 from dashboard.worker.common import load_config, now_iso, resolve_report_dir, write_json_atomic
 from dashboard.worker.schemas import ReportSummary
-from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS
+from tradingagents.agents.structured import NO_EXTERNAL_TOOLS
 from tradingagents.llm_clients.base_client import normalize_content
 
 logger = logging.getLogger(__name__)
@@ -91,19 +90,12 @@ def summarize_report(report_dir: Path, llm, model_label: str) -> dict:
 
 def build_llm(config: dict):
     """Quick-think model of the configured provider; returns (llm, "provider/model")."""
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
-    from tradingagents.llm_clients.factory import create_llm_client
+    from tradingagents.llm_clients import create_tier_client, tier_provider
 
-    # Reuse the graph's provider-kwarg mapping (effort, temperature, retries,
-    # token cap) without constructing a whole graph.
-    kwargs = TradingAgentsGraph._get_provider_kwargs(SimpleNamespace(config=config))
-    client = create_llm_client(
-        provider=config["llm_provider"],
-        model=config["quick_think_llm"],
-        base_url=config.get("backend_url"),
-        **kwargs,
-    )
-    return client.get_llm(), f"{config['llm_provider']}/{config['quick_think_llm']}"
+    # The same quick-tier client the graph builds: its provider, endpoint and
+    # provider settings (effort, temperature, retries, token cap).
+    llm = create_tier_client(config, "quick").get_llm()
+    return llm, f"{tier_provider(config, 'quick')}/{config['quick_think_llm']}"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -13,7 +13,6 @@ import math
 import sys
 from datetime import date, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 
 import yfinance as yf
 
@@ -43,15 +42,11 @@ def fetch_bars(symbol: str, start: str) -> list[dict]:
 
 
 def resolve_symbols(tickers: list[str], config: dict) -> dict[str, dict]:
-    from tradingagents.dataflows.symbol_utils import normalize_symbol
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.dataflows.symbols import normalize_symbol
+    from tradingagents.memory.settlement import resolve_benchmark
 
-    # Same symbol and benchmark the framework uses when it scores its own decisions.
-    graph_like = SimpleNamespace(config=config)
-    return {
-        t: {"symbol": normalize_symbol(t), "benchmark": TradingAgentsGraph._resolve_benchmark(graph_like, t)}
-        for t in tickers
-    }
+    # Same symbol and benchmark the framework uses when it settles its own decisions.
+    return {t: {"symbol": normalize_symbol(t), "benchmark": resolve_benchmark(t, config)} for t in tickers}
 
 
 def _load_index(path: Path) -> dict:
@@ -65,7 +60,7 @@ def _load_index(path: Path) -> dict:
 
 
 def refresh(tickers: list[str], *, fetch=None, config: dict | None = None, today: str | None = None) -> dict:
-    from tradingagents.dataflows.utils import safe_ticker_component
+    from tradingagents.dataflows.symbols import safe_ticker_component
 
     fetch = fetch or fetch_bars
     config = config if config is not None else load_config()
