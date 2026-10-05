@@ -1,5 +1,5 @@
-import { formatWhen } from "@/lib/format";
-import type { LevelsOutcome, Verdict } from "@/lib/outcomes";
+import { formatPercent, formatWhen } from "@/lib/format";
+import type { LevelsOutcome, Outcome, Verdict } from "@/lib/outcomes";
 
 const LABEL: Record<Verdict, string> = { right: "Right", wrong: "Wrong", pending: "Open", expired: "Expired", unscored: "Not scored" };
 
@@ -18,4 +18,10 @@ export function levelsSentence(l: LevelsOutcome): string {
   if (l.touched && l.date) return `${l.touched === "target" ? "Target" : "Stop"} hit on ${day(l.date)}`;
   if (l.verdict === "expired") return `Neither level hit by ${day(l.horizonEnd)}`;
   return `Open until ${day(l.horizonEnd)}${l.horizonAssumed ? " (horizon assumed 3 months)" : ""}`;
+}
+
+export function benchmarkSentence(outcome: Outcome, benchmark: string | null): string {
+  const w = outcome.d20.alpha != null ? outcome.d20 : outcome.d5.alpha != null ? outcome.d5 : null;
+  if (!w || !benchmark) return "Benchmark comparison pending";
+  return `${formatPercent(w.alpha, { signed: true })} vs ${benchmark} after ${w.days} trading days`;
 }

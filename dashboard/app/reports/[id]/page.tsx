@@ -1,13 +1,18 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Markdown } from "@/components/markdown";
+import { PriceFreshness } from "@/components/price-freshness";
 import { RatingScaleMarker } from "@/components/rating-scale-marker";
 import { RatingTag } from "@/components/rating-tag";
 import { StepTabs, type Step } from "@/components/step-tabs";
 import { SummarizeButton } from "@/components/summarize-button";
 import { SummarySection } from "@/components/summary-section";
 import { formatPrice, formatWhen } from "@/lib/format";
+import { benchmarkSentence, levelsSentence } from "@/lib/outcome-text";
 import { NotFoundError, decodeRouteParam } from "@/lib/paths";
+import { pricesStale, readPriceIndex } from "@/lib/prices";
 import { getReport } from "@/lib/reports";
+import { loadScorecard } from "@/lib/scorecard";
 import type { ReportDetail, StepKey } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +30,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     throw e;
   }
   const { summary } = report;
+  const [card, priceIndex] = await Promise.all([loadScorecard(report.id), readPriceIndex()]);
 
   const steps: Step[] = [
     ...report.steps.map((s) => ({
@@ -38,7 +44,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-12">
-      <header className="grid gap-8 border-b border-border pb-10 lg:grid-cols-[1fr_22rem] lg:items-end">
+      <header className="grid gap-8 border-b border-border pb-10 lg:grid-cols-[1fr_22rem] lg:items-start">
         <div>
           <h1 className="text-[clamp(4.5rem,13vw,9rem)] leading-[0.82] font-extrabold tracking-[-0.055em] break-words">{report.ticker}</h1>
           <p className="mt-4 text-muted-foreground">Run {formatWhen(report.runAt)}</p>
@@ -62,6 +68,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                   <dd className="text-lg leading-tight font-semibold">{summary.time_horizon ?? "—"}</dd>
                 </div>
               </dl>
+              {card && (
+                <div className="space-y-1 border-t border-border pt-4 text-[0.9375rem]">
+                  <p className="font-semibold">{levelsSentence(card.outcome.levels)}</p>
+                  <p className="text-muted-foreground">{benchmarkSentence(card.outcome, card.benchmark)}</p>
+                </div>
+              )}
             </>
           ) : (
             <p className="text-muted-foreground">No summary yet. Summarize the report to see its rating, target and stop here.</p>
@@ -69,6 +81,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           {report.complete && (
             <SummarizeButton reportId={report.id} label={summary ? "Regenerate summary" : "Summarize report"} />
           )}
+          <div className="space-y-3">
+            <Link href={`/tickers/${encodeURIComponent(report.ticker)}`} className="underline underline-offset-4">Price and history</Link>
+            {summary && <PriceFreshness fetchedAt={priceIndex.fetched_at} stale={pricesStale(priceIndex)} errors={{}} />}
+          </div>
         </div>
       </header>
 
